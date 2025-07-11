@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1 class="mb-4">Painel de Controlo de {{ current_user.username }}</h1>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>Meus Cursos Inscritos</h3>
+        </div>
+        <div class="card-body">
+            <!-- Verifica se a lista de cursos inscritos não está vazia -->
+            {% if current_user.cursos_inscritos %}
+                <ul class="list-group list-group-flush">
+                    <!-- Itera sobre cada curso em que o utilizador está inscrito -->
+                    {% for curso in current_user.cursos_inscritos %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ curso.titulo }}
+                            <a href="{{ url_for('detalhe_curso', curso_id=curso.id) }}" class="btn btn-sm btn-outline-primary">Ver Detalhes</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <!-- Mensagem mostrada se o utilizador não estiver inscrito em nenhum curso -->
+                <p>Você ainda não se inscreveu em nenhum curso.</p>
+                <a href="{{ url_for('lista_cursos') }}" class="btn btn-success">Ver cursos disponíveis</a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

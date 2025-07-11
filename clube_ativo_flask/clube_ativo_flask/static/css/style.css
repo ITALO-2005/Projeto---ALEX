@@ -1,0 +1,115 @@
+html {
+    height: 100%;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f8f9fa;
+    color: #343a40;
+    /* As 3 propriedades abaixo implementam o "sticky footer" */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+}
+
+/* --- BARRA DE NAVEGAÇÃO --- */
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.bg-custom-theme {
+    background: linear-gradient(90deg, #28a745, #218838);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.nav-profile-image {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 8px;
+    object-fit: cover;
+    border: 2px solid #ffffff;
+}
+
+/* --- BOTÕES --- */
+.btn-custom-theme {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: #fff;
+    font-weight: 500;
+    padding: 0.5rem 1.5rem;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-custom-theme:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* --- CARTÕES (CURSOS E PERFIL) --- */
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.card-header {
+    background-color: #e9ecef;
+    font-weight: 600;
+}
+
+.card-title {
+    color: #28a745;
+}
+
+/* --- FORMULÁRIOS (LOGIN, REGISTO) --- */
+.form-control {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    padding: 0.75rem 1rem;
+}
+
+.form-control:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25);
+}
+
+/* --- FOTO DE PERFIL (PÁGINA DA CONTA) --- */
+.account-img {
+  height: 150px;
+  width: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* --- ALERTAS / MENSAGENS FLASH --- */
+.alert {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+/* --- RODAPÉ --- */
+footer {
+    padding: 1.5rem 0;
+    background-color: #e9ecef;
+    width: 100%;
+}

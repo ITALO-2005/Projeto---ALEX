@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <img class="account-img" src="{{ image_file }}">
+                <h3 class="card-title mt-3">{{ current_user_data.username }}</h3>
+            </div>
+        </div>
+        <div class="card mt-3">
+            <div class="card-header"><h3>Atualizar Foto</h3></div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="picture" class="form-label">Escolher nova foto:</label>
+                        <input type="file" name="picture" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-custom-theme">Guardar Foto</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header"><h3>Meus Cursos Inscritos</h3></div>
+            <div class="card-body">
+                {% if cursos %}
+                    <ul class="list-group list-group-flush">
+                        {% for curso in cursos %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ curso.titulo }}
+                                <a href="{{ url_for('detalhe_curso', curso_id=curso.id) }}" class="btn btn-sm btn-outline-secondary">Ver</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>Você ainda não se inscreveu em nenhum curso.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
