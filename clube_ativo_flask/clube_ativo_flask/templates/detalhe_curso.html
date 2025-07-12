@@ -10,7 +10,7 @@
             <p><strong>Vagas restantes:</strong> {{ vagas_restantes }}</p>
             <hr>
             
-            {% if 'username' in session %}
+            {% if current_user_data %}
                 {% if ja_inscrito %}
                     <button class="btn btn-secondary" disabled>Você já está inscrito</button>
                 {% elif vagas_restantes > 0 %}
