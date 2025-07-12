@@ -1,24 +1,36 @@
 import os
 from functools import wraps
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# --- 1. CONFIGURAÇÃO INICIAL DA APLICAÇÃO ---
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv()
+
+# --- 1. CONFIGURAÇÃO DA APLICAÇÃO ---
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'minha-chave-secreta-de-estudante-123'
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'database.db')
+# Carrega as configurações a partir das variáveis de ambiente para segurança
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'uma-chave-padrao-fraca-se-a-outra-falhar')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-UPLOAD_FOLDER = os.path.join(basedir, 'static/profile_pics')
+
+# Configuração da pasta de uploads para fotos de perfil
+UPLOAD_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'static/profile_pics')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+# --- 2. INICIALIZAÇÃO DO BANCO DE DADOS E MIGRAÇÕES ---
 db = SQLAlchemy(app)
+# Inicializa o Flask-Migrate para gerenciar as alterações no schema do DB
+migrate = Migrate(app, db)
 
-# --- 2. MODELOS (AS TABELAS DO BANCO DE DADOS) ---
 
-# Tabela de associação para o relacionamento Muitos-para-Muitos entre User e Curso
+# --- 3. MODELOS (AS TABELAS DO BANCO DE DADOS) ---
+# Tabela de associação para o relacionamento Muitos-para-Muitos
 inscricao_tabela = db.Table('inscricao',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('curso_id', db.Integer, db.ForeignKey('curso.id'), primary_key=True)
@@ -30,8 +42,6 @@ class User(db.Model):
     username = db.Column(db.String(12), unique=True, nullable=False) # Matrícula
     password_hash = db.Column(db.String(128), nullable=False)
     image_file = db.Column(db.String(100), nullable=False, default='default.jpg')
-    
-    # Relacionamento para acessar os cursos em que o usuário está inscrito
     cursos = db.relationship('Curso', secondary=inscricao_tabela, back_populates='alunos')
 
 class Curso(db.Model):
@@ -40,20 +50,16 @@ class Curso(db.Model):
     titulo = db.Column(db.String(200), nullable=False)
     descricao = db.Column(db.Text, nullable=False)
     vagas = db.Column(db.Integer, nullable=False)
-
-    # Relacionamento para acessar os alunos inscritos no curso
     alunos = db.relationship('User', secondary=inscricao_tabela, back_populates='cursos')
 
     @property
     def vagas_restantes(self):
         return self.vagas - len(self.alunos)
 
-# A tabela Inscricao agora é representada pela 'inscricao_tabela' acima.
-# Manter a classe pode ser útil se você quiser adicionar mais dados à inscrição (ex: data).
-# Por simplicidade, para um aluno de TSI, a tabela de associação é mais direta.
 
-# --- 3. DECORADOR PERSONALIZADO (CONTROLE DE ACESSO) ---
+# --- 4. LÓGICA AUXILIAR (DECORADORES E PROCESSADORES DE CONTEXTO) ---
 def login_required(f):
+    """Decorador para garantir que o usuário está logado."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
@@ -62,7 +68,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- 4. PROCESSADOR DE CONTEXTO (DISPONIBILIZA DADOS GLOBAIS PARA OS TEMPLATES) ---
 @app.context_processor
 def inject_user():
     """Injeta os dados do usuário logado em todos os templates."""
@@ -71,8 +76,8 @@ def inject_user():
         return dict(current_user_data=user)
     return dict(current_user_data=None)
 
-# --- 5. ROTAS (AS PÁGINAS E LÓGICA DO SITE) ---
 
+# --- 5. ROTAS (AS PÁGINAS E LÓGICA DO SITE) ---
 @app.route('/')
 def lista_cursos():
     """Página inicial que lista todos os cursos."""
@@ -171,23 +176,20 @@ def account():
                 flash('Foto de perfil atualizada com sucesso!', 'success')
                 return redirect(url_for('account'))
     
-    # Com os relacionamentos, não precisamos mais de lógicas complexas aqui!
-    # Os cursos já estão em user.cursos.
     image_file = url_for('static', filename='profile_pics/' + user.image_file)
     return render_template('account.html', image_file=image_file, cursos=user.cursos)
 
-# --- 6. COMANDOS DE TERMINAL ---
-@app.cli.command('init-db')
-def init_db_command():
-    """Comando para criar as tabelas e popular com dados iniciais."""
-    db.create_all()
-    # Adiciona cursos iniciais apenas se não houver nenhum
+
+# --- 6. COMANDOS DE TERMINAL PERSONALIZADOS ---
+@app.cli.command('seed-db')
+def seed_db_command():
+    """Comando para popular o banco de dados com dados iniciais (seeding)."""
     if Curso.query.count() == 0:
-        c1 = Curso(titulo='Introdução a Algoritmos', descricao='Aprenda a lógica de programação e estruturas de dados fundamentais para o desenvolvimento de software.', vagas=25)
-        c2 = Curso(titulo='Redes de Computadores 101', descricao='Entenda os fundamentos da internet, protocolos de comunicação e como os dados viajam pelo mundo.', vagas=20)
-        c3 = Curso(titulo='Desenvolvimento Web com Flask', descricao='Crie aplicações web dinâmicas e poderosas utilizando o micro-framework Flask em Python.', vagas=30)
+        c1 = Curso(titulo='Introdução a Algoritmos', descricao='Aprenda a lógica de programação e estruturas de dados fundamentais.', vagas=25)
+        c2 = Curso(titulo='Redes de Computadores 101', descricao='Entenda os fundamentos da internet e protocolos de comunicação.', vagas=20)
+        c3 = Curso(titulo='Desenvolvimento Web com Flask', descricao='Crie aplicações web dinâmicas e poderosas com Flask.', vagas=30)
         db.session.add_all([c1, c2, c3])
         db.session.commit()
-        print('Banco de dados inicializado com cursos de exemplo.')
+        print('Banco de dados semeado com cursos de exemplo.')
     else:
-        print('Banco de dados já contém dados. Nenhum curso foi adicionado.')
+        print('O banco de dados já contém cursos.')
