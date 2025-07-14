@@ -1,43 +1,43 @@
 {% extends 'base.html' %}
+{% block title %}Minha Conta - Clube Ativo{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body text-center">
-                <img class="account-img" src="{{ image_file }}">
-                <h3 class="card-title mt-3">{{ current_user_data.username }}</h3>
-            </div>
+<div class="account-grid">
+    <div class="account-sidebar">
+        <div class="card text-center">
+            <img class="account-img" src="{{ image_file }}" alt="Foto de Perfil">
+            <h3>{{ current_user_data.username }}</h3>
+            <p class="text-muted">Aluno</p>
         </div>
-        <div class="card mt-3">
-            <div class="card-header"><h3>Atualizar Foto</h3></div>
-            <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="picture" class="form-label">Escolher nova foto:</label>
-                        <input type="file" name="picture" class="form-control">
-                    </div>
-                    <button type="submit" class="btn btn-custom-theme">Guardar Foto</button>
-                </form>
-            </div>
+        <div class="card">
+            <h4>Atualizar Foto</h4>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="picture">Escolher nova foto:</label>
+                    <input type="file" name="picture" class="form-input" id="picture">
+                </div>
+                <button type="submit" class="btn">Guardar Foto</button>
+            </form>
         </div>
     </div>
-    <div class="col-md-8">
+    <div class="account-main">
         <div class="card">
-            <div class="card-header"><h3>Meus Cursos Inscritos</h3></div>
-            <div class="card-body">
-                {% if cursos %}
-                    <ul class="list-group list-group-flush">
-                        {% for curso in cursos %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ curso.titulo }}
-                                <a href="{{ url_for('detalhe_curso', curso_id=curso.id) }}" class="btn btn-sm btn-outline-secondary">Ver</a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
+            <h4>Meus Cursos Inscritos</h4>
+            {% if cursos and cursos.count() > 0 %}
+                <ul class="course-list">
+                    {% for curso in cursos %}
+                        <li class="list-item">
+                            <span>{{ curso.titulo }}</span>
+                            <a href="{{ url_for('detalhe_curso', curso_id=curso.id) }}" class="btn btn-secondary">Ver</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="empty-state">
                     <p>Você ainda não se inscreveu em nenhum curso.</p>
-                {% endif %}
-            </div>
+                    <a href="{{ url_for('home') }}" class="btn">Ver cursos disponíveis</a>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>

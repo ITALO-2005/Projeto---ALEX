@@ -1,115 +1,406 @@
+/* --- Variáveis Globais de Cores e Fontes --- */
+:root {
+    --ifpb-green: #28a745;
+    --ifpb-green-dark: #218838;
+    --dark-text: #2c3e50;
+    --light-text: #7f8c8d;
+    --background-light: #f4f6f9;
+    --surface-white: #ffffff;
+    --border-color: #e9ecef;
+    --font-family-base: 'Poppins', sans-serif;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* --- Reset e Configurações Globais --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 html {
     height: 100%;
 }
 
 body {
-    font-family: 'Poppins', sans-serif;
-    background-color: #f8f9fa;
-    color: #343a40;
-    /* As 3 propriedades abaixo implementam o "sticky footer" */
+    font-family: var(--font-family-base);
+    background-color: var(--background-light);
+    color: var(--dark-text);
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    min-height: 100%;
 }
 
-h1, h2, h3, h4, h5, h6 {
+.container {
+    width: 90%;
+    max-width: 1140px;
+    margin: 0 auto;
+}
+
+main.container {
+    flex-grow: 1;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+h1, h2, h3, h4 {
     font-weight: 600;
+    color: var(--dark-text);
+    margin-bottom: 1rem;
 }
 
-/* --- BARRA DE NAVEGAÇÃO --- */
+a {
+    color: var(--ifpb-green);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+a:hover {
+    color: var(--ifpb-green-dark);
+}
+
+/* --- Componentes Reutilizáveis --- */
+
+/* Cabeçalho e Navegação */
+.header {
+    background-color: var(--ifpb-green);
+    padding: 1rem 0;
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .navbar-brand {
     font-weight: 700;
     font-size: 1.5rem;
+    color: var(--surface-white);
 }
 
-.bg-custom-theme {
-    background: linear-gradient(90deg, #28a745, #218838);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+.navbar-brand strong {
+    font-weight: 400;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.nav-item {
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 500;
+    padding: 0.5rem;
+}
+
+.nav-item:hover {
+    color: var(--surface-white);
 }
 
 .nav-profile-image {
-    width: 32px;
-    height: 32px;
+    width: 35px;
+    height: 35px;
     border-radius: 50%;
-    margin-right: 8px;
+    margin-right: 10px;
     object-fit: cover;
-    border: 2px solid #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.8);
 }
 
-/* --- BOTÕES --- */
-.btn-custom-theme {
-    background-color: #28a745;
-    border-color: #28a745;
-    color: #fff;
-    font-weight: 500;
-    padding: 0.5rem 1.5rem;
-    border-radius: 50px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.user-menu {
+    position: relative;
 }
 
-.btn-custom-theme:hover {
-    background-color: #218838;
-    border-color: #1e7e34;
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+.user-menu-trigger {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
 }
 
-/* --- CARTÕES (CURSOS E PERFIL) --- */
-.card {
+.user-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: var(--surface-white);
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-md);
+    list-style: none;
+    padding: 0.5rem 0;
+    min-width: 160px;
+    z-index: 101;
+}
+
+.user-menu:hover .user-dropdown {
+    display: block;
+}
+
+.dropdown-item {
+    display: block;
+    padding: 0.75rem 1.5rem;
+    color: var(--dark-text);
+}
+
+.dropdown-item:hover {
+    background-color: var(--background-light);
+}
+
+.nav-toggle {
+    display: none; /* Escondido em desktop */
+    background: none;
     border: none;
-    border-radius: 15px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    transition: all 0.3s ease;
-    overflow: hidden;
+    cursor: pointer;
+}
+.nav-toggle span {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background-color: white;
+    margin: 5px 0;
+    transition: all 0.3s;
 }
 
+
+/* Cartões */
+.card {
+    background-color: var(--surface-white);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+}
 .card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    box-shadow: var(--shadow-md);
+}
+.card .card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.card .card-body {
+    padding: 1.5rem;
+    flex-grow: 1;
+}
+.card .card-footer {
+    padding: 1rem 1.5rem;
+    background-color: var(--background-light);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.card-header {
-    background-color: #e9ecef;
+.course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.vagas-badge {
+    background-color: var(--border-color);
+    color: var(--light-text);
+    padding: 0.3rem 0.6rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
     font-weight: 600;
 }
-
-.card-title {
-    color: #28a745;
+.vagas-badge-lg {
+    background-color: var(--ifpb-green);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 1rem;
 }
 
-/* --- FORMULÁRIOS (LOGIN, REGISTO) --- */
-.form-control {
-    border-radius: 8px;
-    border: 1px solid #ced4da;
-    padding: 0.75rem 1rem;
+/* Botões */
+.btn {
+    background-color: var(--ifpb-green);
+    border: 1px solid var(--ifpb-green);
+    color: #fff;
+    font-weight: 500;
+    padding: 0.6rem 1.5rem;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-align: center;
+}
+.btn:hover {
+    background-color: var(--ifpb-green-dark);
+    border-color: var(--ifpb-green-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.btn.btn-secondary {
+    background-color: var(--light-text);
+    border-color: var(--light-text);
+}
+.btn.btn-secondary:hover {
+    background-color: var(--dark-text);
+    border-color: var(--dark-text);
+}
+.btn.btn-danger {
+    background-color: #e74c3c;
+    border-color: #e74c3c;
+}
+.btn.btn-outline {
+    background-color: transparent;
+    border-color: var(--surface-white);
+    color: var(--surface-white);
+}
+.btn.btn-outline:hover {
+    background-color: var(--surface-white);
+    color: var(--ifpb-green);
 }
 
-.form-control:focus {
-    border-color: #28a745;
-    box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25);
+/* Formulários */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem 0;
 }
-
-/* --- FOTO DE PERFIL (PÁGINA DA CONTA) --- */
-.account-img {
-  height: 150px;
-  width: 150px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid #fff;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+.auth-card {
+    width: 100%;
+    max-width: 450px;
 }
-
-/* --- ALERTAS / MENSAGENS FLASH --- */
-.alert {
-    border-radius: 8px;
+.form-group {
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
     font-weight: 500;
 }
-
-/* --- RODAPÉ --- */
-footer {
-    padding: 1.5rem 0;
-    background-color: #e9ecef;
+.form-input {
     width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--background-light);
+    transition: all 0.2s;
+}
+.form-input:focus {
+    outline: none;
+    border-color: var(--ifpb-green);
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+}
+.btn-full {
+    width: 100%;
+    padding: 0.8rem;
+}
+.auth-switch {
+    margin-top: 1.5rem;
+    color: var(--light-text);
+}
+
+/* Alertas */
+.alert {
+    padding: 1rem 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid transparent;
+}
+.alert-success { background-color: #d1e7dd; border-color: #a3cfbb; color: #0a3622; }
+.alert-warning { background-color: #fff3cd; border-color: #ffe69c; color: #664d03; }
+.alert-danger { background-color: #f8d7da; border-color: #f5c2c7; color: #58151c; }
+.alert-info { background-color: #cff4fc; border-color: #9eeaf9; color: #055160; }
+
+/* Página da Conta */
+.account-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+@media (min-width: 992px) {
+    .account-grid {
+        grid-template-columns: 300px 1fr;
+    }
+}
+.account-img {
+    height: 120px;
+    width: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--ifpb-green);
+    margin: 0 auto 1rem;
+}
+.course-list {
+    list-style: none;
+}
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.list-item:last-child {
+    border-bottom: none;
+}
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+}
+
+/* Rodapé */
+.footer {
+    padding: 2rem 0;
+    background-color: var(--surface-white);
+    text-align: center;
+    margin-top: auto;
+    border-top: 1px solid var(--border-color);
+}
+.footer p {
+    margin: 0;
+    color: var(--light-text);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .nav-toggle {
+        display: block;
+    }
+    .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: var(--ifpb-green);
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem 0;
+        gap: 0;
+    }
+    .nav-links.active {
+        display: flex;
+    }
+    .nav-item {
+        text-align: center;
+        width: 100%;
+    }
+    .user-menu {
+        text-align: center;
+    }
+    .user-dropdown {
+        position: static;
+        display: none; /* Esconde o submenu por padrão no mobile */
+        background: none;
+        box-shadow: none;
+    }
+    .user-menu:hover .user-dropdown {
+        display: none; /* Desativa o hover em mobile */
+    }
+    .user-menu-trigger + .user-dropdown {
+        display: block; /* Mostra o submenu quando a classe active é adicionada */
+        background-color: var(--ifpb-green-dark);
+    }
 }
