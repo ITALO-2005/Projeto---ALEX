@@ -15,7 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', (e) => {
             const submitButton = form.querySelector('button[type="submit"]');
             if (submitButton) {
+<<<<<<< HEAD
                 // Adiciona um pequeno delay para garantir que a validação do navegador ocorra
+=======
+>>>>>>> f776aa0 (TESTOSTERONA)
                 setTimeout(() => {
                     submitButton.disabled = true;
                     submitButton.innerHTML = `A processar...`;

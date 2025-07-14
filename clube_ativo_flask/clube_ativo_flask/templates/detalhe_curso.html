@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}{{ curso.titulo }} - Clube Ativo{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-header">
+            <h2>{{ curso.titulo }}</h2>
+        </div>
+        <div class="card-body">
+            <p class="lead">{{ curso.descricao }}</p>
+            <hr>
+            <div class="details-footer">
+                <p><strong>Vagas restantes:</strong> <span class="vagas-badge-lg">{{ curso.vagas_restantes }}</span></p>
+                
+                {% if ja_inscrito %}
+                    <button class="btn btn-secondary" disabled>Você já está inscrito</button>
+                {% elif curso.vagas_restantes > 0 %}
+                    <form action="{{ url_for('inscrever_curso', curso_id=curso.id) }}" method="post" class="inline-form">
+                        <button type="submit" class="btn">Inscrever-se Agora</button>
+                    </form>
+                {% else %}
+                    <button class="btn btn-danger" disabled>Vagas Esgotadas</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="back-link-container">
+        <a href="{{ url_for('home') }}">&larr; Voltar para a lista de cursos</a>
+    </div>
+{% endblock %}

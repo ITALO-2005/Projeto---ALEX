@@ -1,6 +1,10 @@
 import os
 from functools import wraps
+<<<<<<< HEAD
 from datetime import datetime, timezone
+=======
+from datetime import datetime
+>>>>>>> f776aa0 (TESTOSTERONA)
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
@@ -25,7 +29,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     """Verifica se a extensão do arquivo é permitida."""
+<<<<<<< HEAD
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+=======
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+>>>>>>> f776aa0 (TESTOSTERONA)
 
 # --- 2. INICIALIZAÇÃO DO BANCO DE DADOS E MIGRAÇÕES ---
 db = SQLAlchemy(app)
@@ -46,6 +56,7 @@ membros_clube_tabela = db.Table('membros_clube',
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+<<<<<<< HEAD
     username = db.Column(db.String(12), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     image_file = db.Column(db.String(100), nullable=False, default='default.jpg')
@@ -53,6 +64,15 @@ class User(db.Model):
     clubes_membro = db.relationship('Clube', secondary=membros_clube_tabela, back_populates='membros', lazy='dynamic')
     topicos_forum = db.relationship('ForumTopico', backref='autor', lazy=True, cascade="all, delete-orphan")
     posts_forum = db.relationship('ForumPost', backref='autor', lazy=True, cascade="all, delete-orphan")
+=======
+    username = db.Column(db.String(12), unique=True, nullable=False) # Matrícula
+    password_hash = db.Column(db.String(256), nullable=False)
+    image_file = db.Column(db.String(100), nullable=False, default='default.jpg')
+    cursos = db.relationship('Curso', secondary=inscricao_tabela, back_populates='alunos', lazy='dynamic')
+
+    def __repr__(self):
+        return f"User('{self.username}', '{self.image_file}')"
+>>>>>>> f776aa0 (TESTOSTERONA)
 
 class Clube(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -67,6 +87,7 @@ class Evento(db.Model):
     titulo = db.Column(db.String(200), nullable=False)
     descricao = db.Column(db.Text, nullable=False)
     vagas = db.Column(db.Integer, nullable=False)
+<<<<<<< HEAD
     data_evento = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     clube_id = db.Column(db.Integer, db.ForeignKey('clube.id'), nullable=False)
     alunos_inscritos = db.relationship('User', secondary=inscricao_evento_tabela, back_populates='eventos_inscritos', lazy='dynamic')
@@ -75,6 +96,16 @@ class Evento(db.Model):
     @property
     def vagas_restantes(self):
         return self.vagas - self.alunos_inscritos.count()
+=======
+    alunos = db.relationship('User', secondary=inscricao_tabela, back_populates='cursos', lazy='dynamic')
+
+    @property
+    def vagas_restantes(self):
+        return self.vagas - self.alunos.count()
+
+    def __repr__(self):
+        return f"Curso('{self.titulo}')"
+>>>>>>> f776aa0 (TESTOSTERONA)
 
 class Noticia(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -110,15 +141,43 @@ def login_required(f):
 
 @app.context_processor
 def inject_user_and_year():
+<<<<<<< HEAD
     user = User.query.get(session['user_id']) if 'user_id' in session else None
     return dict(current_user_data=user, current_year=datetime.now(timezone.utc).year)
+=======
+    """Injeta dados do usuário e o ano atual em todos os templates."""
+    user = None
+    if 'user_id' in session:
+        user = User.query.get(session['user_id'])
+    return dict(current_user_data=user, current_year=datetime.utcnow().year)
+>>>>>>> f776aa0 (TESTOSTERONA)
 
 # --- 5. ROTAS ---
 @app.route('/')
+<<<<<<< HEAD
 def index():
     if 'user_id' in session:
         return redirect(url_for('noticias'))
     return redirect(url_for('login'))
+=======
+@login_required
+def home():
+    """Página inicial que lista todos os cursos."""
+    cursos = Curso.query.order_by(Curso.titulo).all()
+    return render_template('lista_cursos.html', cursos=cursos)
+
+@app.route('/curso/<int:curso_id>')
+@login_required
+def detalhe_curso(curso_id):
+    """Mostra os detalhes de um curso específico."""
+    curso = Curso.query.get_or_404(curso_id)
+    ja_inscrito = False
+    if 'user_id' in session:
+        user = User.query.get(session['user_id'])
+        if curso in user.cursos.all():
+            ja_inscrito = True
+    return render_template('detalhe_curso.html', curso=curso, ja_inscrito=ja_inscrito)
+>>>>>>> f776aa0 (TESTOSTERONA)
 
 # Feed de Notícias
 @app.route('/noticias')
@@ -208,6 +267,7 @@ def detalhe_evento(evento_id):
     ja_inscrito = evento in user.eventos_inscritos.all()
     return render_template('detalhe_evento.html', evento=evento, ja_inscrito=ja_inscrito)
 
+<<<<<<< HEAD
 @app.route('/evento/<int:evento_id>/inscrever', methods=['POST'])
 @login_required
 def inscrever_evento(evento_id):
@@ -222,10 +282,25 @@ def inscrever_evento(evento_id):
         db.session.commit()
         flash('Inscrição realizada com sucesso!', 'success')
     return redirect(url_for('detalhe_evento', evento_id=evento.id))
+=======
+    if curso in user.cursos.all():
+        flash('Você já está inscrito neste curso.', 'info')
+        return redirect(url_for('detalhe_curso', curso_id=curso.id))
+
+    if curso.vagas_restantes <= 0:
+        flash('Vagas esgotadas para este curso!', 'danger')
+        return redirect(url_for('detalhe_curso', curso_id=curso.id))
+
+    user.cursos.append(curso)
+    db.session.commit()
+    flash('Inscrição realizada com sucesso!', 'success')
+    return redirect(url_for('detalhe_curso', curso_id=curso.id))
+>>>>>>> f776aa0 (TESTOSTERONA)
 
 # Autenticação e Perfil
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+<<<<<<< HEAD
     if 'user_id' in session: return redirect(url_for('noticias'))
     if request.method == 'POST':
         username = request.form.get('username')
@@ -241,21 +316,61 @@ def register():
             db.session.commit()
             flash('Conta criada com sucesso! Pode fazer o login.', 'success')
             return redirect(url_for('login'))
+=======
+    """Página de registro de novos usuários."""
+    if 'user_id' in session:
+        return redirect(url_for('home'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if not (username and len(username) == 12 and username.isdigit()):
+            flash('Formato de matrícula inválido. Use apenas os 12 dígitos.', 'danger')
+            return redirect(url_for('register'))
+        
+        user_existente = User.query.filter_by(username=username).first()
+        if user_existente:
+            flash('Esta matrícula já está registrada. Tente fazer o login.', 'warning')
+            return redirect(url_for('login'))
+
+        password_hash = generate_password_hash(password)
+        novo_user = User(username=username, password_hash=password_hash)
+        db.session.add(novo_user)
+        db.session.commit()
+        flash('Conta criada com sucesso! Pode fazer o login.', 'success')
+        return redirect(url_for('login'))
+>>>>>>> f776aa0 (TESTOSTERONA)
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+<<<<<<< HEAD
     if 'user_id' in session: return redirect(url_for('noticias'))
+=======
+    """Página de login."""
+    if 'user_id' in session:
+        return redirect(url_for('home'))
+
+>>>>>>> f776aa0 (TESTOSTERONA)
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
+        
         if user and check_password_hash(user.password_hash, password):
             session['user_id'] = user.id
             flash('Login realizado com sucesso!', 'success')
+<<<<<<< HEAD
             return redirect(url_for('noticias'))
         else:
             flash('Matrícula ou senha inválidos. Tente novamente.', 'danger')
+=======
+            return redirect(url_for('home'))
+        else:
+            flash('Matrícula ou senha inválidos. Tente novamente.', 'danger')
+            return redirect(url_for('login'))
+>>>>>>> f776aa0 (TESTOSTERONA)
     return render_template('login.html')
 
 @app.route('/logout')
@@ -267,6 +382,7 @@ def logout():
 @app.route('/account', methods=['GET', 'POST'])
 @login_required
 def account():
+<<<<<<< HEAD
     user = User.query.get_or_404(session['user_id'])
     if request.method == 'POST' and 'picture' in request.files:
         file = request.files['picture']
@@ -279,12 +395,30 @@ def account():
             return redirect(url_for('account'))
         else:
             flash('Tipo de arquivo inválido. Use png, jpg, jpeg ou gif.', 'danger')
+=======
+    """Página de perfil do usuário."""
+    user = User.query.get_or_404(session['user_id'])
+    if request.method == 'POST':
+        if 'picture' in request.files:
+            file = request.files['picture']
+            if file and file.filename != '' and allowed_file(file.filename):
+                filename = secure_filename(f"{user.username}_{file.filename}")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                user.image_file = filename
+                db.session.commit()
+                flash('Foto de perfil atualizada com sucesso!', 'success')
+                return redirect(url_for('account'))
+            else:
+                flash('Tipo de arquivo inválido. Use png, jpg, jpeg ou gif.', 'danger')
+
+>>>>>>> f776aa0 (TESTOSTERONA)
     image_file = url_for('static', filename='profile_pics/' + user.image_file)
     return render_template('account.html', image_file=image_file, eventos=user.eventos_inscritos)
 
 # --- Comandos CLI ---
 @app.cli.command('seed-db')
 def seed_db_command():
+<<<<<<< HEAD
     """Popula o banco de dados com dados iniciais."""
     if Clube.query.count() == 0:
         clube1 = Clube(nome='Clube de Programação', descricao='Para entusiastas de código e desenvolvimento.', categoria='Tecnologia')
@@ -307,6 +441,19 @@ def seed_db_command():
         print("Notícias de exemplo criadas.")
     else:
         print("O banco de dados já contém dados.")
+=======
+    """Comando para popular o banco de dados com dados iniciais (seeding)."""
+    if Curso.query.count() > 0:
+        print('O banco de dados já contém cursos.')
+        return
+
+    c1 = Curso(titulo='Introdução a Algoritmos', descricao='Aprenda a lógica de programação e estruturas de dados fundamentais.', vagas=25)
+    c2 = Curso(titulo='Redes de Computadores 101', descricao='Entenda os fundamentos da internet e protocolos de comunicação.', vagas=20)
+    c3 = Curso(titulo='Desenvolvimento Web com Flask', descricao='Crie aplicações web dinâmicas e poderosas com Flask.', vagas=30)
+    db.session.add_all([c1, c2, c3])
+    db.session.commit()
+    print('Banco de dados semeado com cursos de exemplo.')
+>>>>>>> f776aa0 (TESTOSTERONA)
 
 
 if __name__ == '__main__':
