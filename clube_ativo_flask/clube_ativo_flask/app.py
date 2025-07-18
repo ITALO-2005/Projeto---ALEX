@@ -75,7 +75,7 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            flash('Você precisa fazer login para acessar esta página.', 'warning')
+            flash('Você precisa possuir uma matricula para acessar esta página.', 'warning')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -215,7 +215,7 @@ def seed_db_command():
 
     c1 = Curso(titulo='Introdução a Algoritmos', descricao='Aprenda a lógica de programação e estruturas de dados fundamentais.', vagas=25)
     c2 = Curso(titulo='Redes de Computadores 101', descricao='Entenda os fundamentos da internet e protocolos de comunicação.', vagas=20)
-    c3 = Curso(titulo='Desenvolvimento Web com Flask', descricao='Crie aplicações web dinâmicas e poderosas com Flask.', vagas=30)
+    c3 = Curso(titulo='Clube de Teatro', descricao='Participe de apresentações e peças culturais', vagas=30)
     db.session.add_all([c1, c2, c3])
     db.session.commit()
     print('Banco de dados semeado com cursos de exemplo.')
