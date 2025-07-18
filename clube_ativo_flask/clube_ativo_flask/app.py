@@ -60,6 +60,7 @@ class Curso(db.Model):
     descricao = db.Column(db.Text, nullable=False)
     vagas = db.Column(db.Integer, nullable=False)
     alunos = db.relationship('User', secondary=inscricao_tabela, back_populates='cursos', lazy='dynamic')
+    noticias = db.relationship('Noticia', backref='curso', lazy='dynamic', cascade="all, delete-orphan")
 
     @property
     def vagas_restantes(self):
@@ -68,6 +69,17 @@ class Curso(db.Model):
     def __repr__(self):
         return f"Curso('{self.titulo}')"
 
+class Noticia(db.Model):
+    """Modelo para as notícias dos cursos."""
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(200), nullable=False)
+    conteudo = db.Column(db.Text, nullable=False)
+    data_publicacao = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    curso_id = db.Column(db.Integer, db.ForeignKey('curso.id'), nullable=False)
+    
+    def __repr__(self):
+        return f"Noticia('{self.titulo}', '{self.data_publicacao}')"
+
 
 # --- 4. LÓGICA AUXILIAR (DECORADORES E PROCESSADORES DE CONTEXTO) ---
 def login_required(f):
@@ -75,7 +87,7 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            flash('Você precisa possuir uma matricula para acessar esta página.', 'warning')
+            flash('Você precisa fazer login para acessar esta página.', 'warning')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -97,17 +109,25 @@ def home():
     cursos = Curso.query.order_by(Curso.titulo).all()
     return render_template('lista_cursos.html', cursos=cursos)
 
+@app.route('/noticias')
+@login_required
+def noticias():
+    """Página que exibe todas as notícias em ordem cronológica."""
+    todas_noticias = Noticia.query.order_by(Noticia.data_publicacao.desc()).all()
+    return render_template('noticias.html', noticias=todas_noticias)
+
 @app.route('/curso/<int:curso_id>')
 @login_required
 def detalhe_curso(curso_id):
-    """Mostra os detalhes de um curso específico."""
+    """Mostra os detalhes de um curso específico e suas notícias."""
     curso = Curso.query.get_or_404(curso_id)
     ja_inscrito = False
     if 'user_id' in session:
         user = User.query.get(session['user_id'])
         if curso in user.cursos.all():
             ja_inscrito = True
-    return render_template('detalhe_curso.html', curso=curso, ja_inscrito=ja_inscrito)
+    noticias_do_curso = curso.noticias.order_by(Noticia.data_publicacao.desc()).all()
+    return render_template('detalhe_curso.html', curso=curso, ja_inscrito=ja_inscrito, noticias=noticias_do_curso)
 
 @app.route('/curso/<int:curso_id>/inscrever', methods=['POST'])
 @login_required
@@ -211,14 +231,27 @@ def seed_db_command():
     """Comando para popular o banco de dados com dados iniciais (seeding)."""
     if Curso.query.count() > 0:
         print('O banco de dados já contém cursos.')
-        return
+    else:
+        c1 = Curso(titulo='Introdução a Algoritmos', descricao='Aprenda a lógica de programação e estruturas de dados fundamentais.', vagas=25)
+        c2 = Curso(titulo='Redes de Computadores 101', descricao='Entenda os fundamentos da internet e protocolos de comunicação.', vagas=20)
+        c3 = Curso(titulo='Desenvolvimento Web com Flask', descricao='Crie aplicações web dinâmicas e poderosas com Flask.', vagas=30)
+        db.session.add_all([c1, c2, c3])
+        db.session.commit()
+        print('Banco de dados semeado com cursos de exemplo.')
 
-    c1 = Curso(titulo='Introdução a Algoritmos', descricao='Aprenda a lógica de programação e estruturas de dados fundamentais.', vagas=25)
-    c2 = Curso(titulo='Redes de Computadores 101', descricao='Entenda os fundamentos da internet e protocolos de comunicação.', vagas=20)
-    c3 = Curso(titulo='Clube de Teatro', descricao='Participe de apresentações e peças culturais', vagas=30)
-    db.session.add_all([c1, c2, c3])
-    db.session.commit()
-    print('Banco de dados semeado com cursos de exemplo.')
+    if Noticia.query.count() == 0:
+        c1 = Curso.query.filter_by(titulo='Introdução a Algoritmos').first()
+        c3 = Curso.query.filter_by(titulo='Desenvolvimento Web com Flask').first()
+        
+        if c1 and c3:
+            n1 = Noticia(titulo='Inscrições Abertas!', conteudo='As inscrições para a nova turma de Introdução a Algoritmos estão oficialmente abertas. Garanta já a sua vaga!', curso=c1)
+            n2 = Noticia(titulo='Novo Módulo: Flask Avançado', conteudo='Adicionámos um novo módulo ao curso de Flask, cobrindo tópicos como Blueprints e extensões populares.', curso=c3)
+            n3 = Noticia(titulo='Vagas Remanescentes', conteudo='Ainda restam 5 vagas para o curso de Algoritmos. Não perca esta oportunidade!', curso=c1)
+            db.session.add_all([n1, n2, n3])
+            db.session.commit()
+            print('Banco de dados semeado com notícias de exemplo.')
+    else:
+        print('O banco de dados já contém notícias.')
 
 
 if __name__ == '__main__':

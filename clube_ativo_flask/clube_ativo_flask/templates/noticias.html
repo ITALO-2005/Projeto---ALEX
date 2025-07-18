@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Notícias - Clube Ativo{% endblock %}
+
+{% block content %}
+    <h1 class="page-header">Últimas Notícias</h1>
+    <div class="news-feed">
+        {% for noticia in noticias %}
+            <div class="card news-card">
+                <div class="card-body">
+                    <h3>{{ noticia.titulo }}</h3>
+                    <div class="news-meta">
+                        <span><i class="fas fa-calendar-alt"></i> {{ noticia.data_publicacao.strftime('%d de %b de %Y') }}</span>
+                        <span><i class="fas fa-chalkboard"></i> <a href="{{ url_for('detalhe_curso', curso_id=noticia.curso.id) }}">{{ noticia.curso.titulo }}</a></span>
+                    </div>
+                    <p>{{ noticia.conteudo }}</p>
+                </div>
+            </div>
+        {% else %}
+            <p>Nenhuma notícia publicada ainda.</p>
+        {% endfor %}
+    </div>
+{% endblock %}
+

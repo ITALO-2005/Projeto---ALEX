@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ curso.titulo }} - Hub Ativo{% endblock %}
+{% block title %}{{ curso.titulo }} - Clube Ativo{% endblock %}
 
 {% block content %}
     <div class="card">
@@ -10,13 +10,13 @@
             <p class="lead">{{ curso.descricao }}</p>
             <hr>
             <div class="details-footer">
-                <p><strong>Vagas restantes:</strong> <span class="vagas-badge-lg">{{ curso.vagas_restantes }}</span></p>
+                <p><strong><i class="fas fa-users"></i> Vagas restantes:</strong> <span class="vagas-badge-lg">{{ curso.vagas_restantes }}</span></p>
                 
                 {% if ja_inscrito %}
-                    <button class="btn btn-secondary" disabled>Você já está inscrito</button>
+                    <button class="btn btn-secondary" disabled><i class="fas fa-check-circle"></i> Você já está inscrito</button>
                 {% elif curso.vagas_restantes > 0 %}
                     <form action="{{ url_for('inscrever_curso', curso_id=curso.id) }}" method="post" class="inline-form">
-                        <button type="submit" class="btn">Inscrever-se Agora</button>
+                        <button type="submit" class="btn"><i class="fas fa-user-plus"></i> Inscrever-se Agora</button>
                     </form>
                 {% else %}
                     <button class="btn btn-danger" disabled>Vagas Esgotadas</button>
@@ -24,6 +24,26 @@
             </div>
         </div>
     </div>
+
+    <div class="related-news">
+        <h3 class="page-header">Notícias sobre este Curso</h3>
+        {% if noticias %}
+            {% for noticia in noticias %}
+                <div class="card news-card-small">
+                    <div class="card-body">
+                        <h4>{{ noticia.titulo }}</h4>
+                        <div class="news-meta">
+                            <span><i class="fas fa-calendar-alt"></i> {{ noticia.data_publicacao.strftime('%d de %b de %Y') }}</span>
+                        </div>
+                        <p>{{ noticia.conteudo }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Nenhuma notícia para este curso ainda.</p>
+        {% endif %}
+    </div>
+
     <div class="back-link-container">
         <a href="{{ url_for('home') }}">&larr; Voltar para a lista de cursos</a>
     </div>

@@ -12,9 +12,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Desativa o botão de submissão para evitar múltiplos cliques
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
-        form.addEventListener('submit', () => {
+        form.addEventListener('submit', (e) => {
             const submitButton = form.querySelector('button[type="submit"]');
             if (submitButton) {
+                // Adiciona um pequeno delay para garantir que a validação do navegador ocorra
                 setTimeout(() => {
                     submitButton.disabled = true;
                     submitButton.innerHTML = `A processar...`;
