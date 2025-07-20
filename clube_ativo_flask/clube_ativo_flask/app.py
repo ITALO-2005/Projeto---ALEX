@@ -1,6 +1,6 @@
 import os
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
@@ -13,8 +13,7 @@ load_dotenv()
 
 # --- 1. CONFIGURAÇÃO DA APLICAÇÃO ---
 app = Flask(__name__)
-# Carrega as configurações a partir das variáveis de ambiente para segurança
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'uma-chave-padrao-fraca-se-a-outra-falhar')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'uma-chave-secreta-para-desenvolvimento')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -26,64 +25,81 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     """Verifica se a extensão do arquivo é permitida."""
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- 2. INICIALIZAÇÃO DO BANCO DE DADOS E MIGRAÇÕES ---
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+# --- 3. MODELOS DA BASE DE DADOS ---
 
-# --- 3. MODELOS (AS TABELAS DO BANCO DE DADOS) ---
-# Tabela de associação para o relacionamento Muitos-para-Muitos
-inscricao_tabela = db.Table('inscricao',
+# Tabelas de associação
+inscricao_evento_tabela = db.Table('inscricao_evento',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
-    db.Column('curso_id', db.Integer, db.ForeignKey('curso.id'), primary_key=True)
+    db.Column('evento_id', db.Integer, db.ForeignKey('evento.id'), primary_key=True)
+)
+
+membros_clube_tabela = db.Table('membros_clube',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('clube_id', db.Integer, db.ForeignKey('clube.id'), primary_key=True)
 )
 
 class User(db.Model):
-    """Modelo para os usuários (alunos)."""
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(12), unique=True, nullable=False) # Matrícula
+    username = db.Column(db.String(12), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     image_file = db.Column(db.String(100), nullable=False, default='default.jpg')
-    cursos = db.relationship('Curso', secondary=inscricao_tabela, back_populates='alunos', lazy='dynamic')
+    eventos_inscritos = db.relationship('Evento', secondary=inscricao_evento_tabela, back_populates='alunos_inscritos', lazy='dynamic')
+    clubes_membro = db.relationship('Clube', secondary=membros_clube_tabela, back_populates='membros', lazy='dynamic')
+    topicos_forum = db.relationship('ForumTopico', backref='autor', lazy=True, cascade="all, delete-orphan")
+    posts_forum = db.relationship('ForumPost', backref='autor', lazy=True, cascade="all, delete-orphan")
 
-    def __repr__(self):
-        return f"User('{self.username}', '{self.image_file}')"
+class Clube(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), unique=True, nullable=False)
+    descricao = db.Column(db.Text, nullable=False)
+    categoria = db.Column(db.String(50), nullable=False)
+    membros = db.relationship('User', secondary=membros_clube_tabela, back_populates='clubes_membro', lazy='dynamic')
+    eventos = db.relationship('Evento', backref='clube_organizador', lazy='dynamic')
 
-class Curso(db.Model):
-    """Modelo para os cursos oferecidos."""
+class Evento(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titulo = db.Column(db.String(200), nullable=False)
     descricao = db.Column(db.Text, nullable=False)
     vagas = db.Column(db.Integer, nullable=False)
-    alunos = db.relationship('User', secondary=inscricao_tabela, back_populates='cursos', lazy='dynamic')
-    noticias = db.relationship('Noticia', backref='curso', lazy='dynamic', cascade="all, delete-orphan")
+    data_evento = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    clube_id = db.Column(db.Integer, db.ForeignKey('clube.id'), nullable=False)
+    alunos_inscritos = db.relationship('User', secondary=inscricao_evento_tabela, back_populates='eventos_inscritos', lazy='dynamic')
+    noticias = db.relationship('Noticia', backref='evento', lazy='dynamic', cascade="all, delete-orphan")
 
     @property
     def vagas_restantes(self):
-        return self.vagas - self.alunos.count()
-
-    def __repr__(self):
-        return f"Curso('{self.titulo}')"
+        return self.vagas - self.alunos_inscritos.count()
 
 class Noticia(db.Model):
-    """Modelo para as notícias dos cursos."""
     id = db.Column(db.Integer, primary_key=True)
     titulo = db.Column(db.String(200), nullable=False)
     conteudo = db.Column(db.Text, nullable=False)
-    data_publicacao = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    curso_id = db.Column(db.Integer, db.ForeignKey('curso.id'), nullable=False)
-    
-    def __repr__(self):
-        return f"Noticia('{self.titulo}', '{self.data_publicacao}')"
+    data_publicacao = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    evento_id = db.Column(db.Integer, db.ForeignKey('evento.id'), nullable=True)
 
+class ForumTopico(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(200), nullable=False)
+    conteudo = db.Column(db.Text, nullable=False)
+    data_criacao = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    posts = db.relationship('ForumPost', backref='topico', lazy='dynamic', cascade="all, delete-orphan")
 
-# --- 4. LÓGICA AUXILIAR (DECORADORES E PROCESSADORES DE CONTEXTO) ---
+class ForumPost(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    conteudo = db.Column(db.Text, nullable=False)
+    data_criacao = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    topico_id = db.Column(db.Integer, db.ForeignKey('forum_topico.id'), nullable=False)
+
+# --- 4. LÓGICA AUXILIAR ---
 def login_required(f):
-    """Decorador para garantir que o usuário está logado."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
@@ -94,111 +110,156 @@ def login_required(f):
 
 @app.context_processor
 def inject_user_and_year():
-    """Injeta dados do usuário e o ano atual em todos os templates."""
-    user = None
-    if 'user_id' in session:
-        user = User.query.get(session['user_id'])
-    return dict(current_user_data=user, current_year=datetime.utcnow().year)
+    user = User.query.get(session['user_id']) if 'user_id' in session else None
+    return dict(current_user_data=user, current_year=datetime.now(timezone.utc).year)
 
-
-# --- 5. ROTAS (AS PÁGINAS E LÓGICA DO SITE) ---
+# --- 5. ROTAS ---
 @app.route('/')
-@login_required
-def home():
-    """Página inicial que lista todos os cursos."""
-    cursos = Curso.query.order_by(Curso.titulo).all()
-    return render_template('lista_cursos.html', cursos=cursos)
+def index():
+    if 'user_id' in session:
+        return redirect(url_for('noticias'))
+    return redirect(url_for('login'))
 
+# Feed de Notícias
 @app.route('/noticias')
 @login_required
 def noticias():
-    """Página que exibe todas as notícias em ordem cronológica."""
     todas_noticias = Noticia.query.order_by(Noticia.data_publicacao.desc()).all()
     return render_template('noticias.html', noticias=todas_noticias)
 
-@app.route('/curso/<int:curso_id>')
+# Clubes e Ranking
+@app.route('/clubes')
 @login_required
-def detalhe_curso(curso_id):
-    """Mostra os detalhes de um curso específico e suas notícias."""
-    curso = Curso.query.get_or_404(curso_id)
-    ja_inscrito = False
-    if 'user_id' in session:
-        user = User.query.get(session['user_id'])
-        if curso in user.cursos.all():
-            ja_inscrito = True
-    noticias_do_curso = curso.noticias.order_by(Noticia.data_publicacao.desc()).all()
-    return render_template('detalhe_curso.html', curso=curso, ja_inscrito=ja_inscrito, noticias=noticias_do_curso)
+def clubes():
+    todos_clubes = Clube.query.order_by(Clube.nome).all()
+    return render_template('clubes.html', clubes=todos_clubes)
 
-@app.route('/curso/<int:curso_id>/inscrever', methods=['POST'])
+@app.route('/clube/<int:clube_id>')
 @login_required
-def inscrever_curso(curso_id):
-    """Processa a inscrição de um usuário em um curso."""
-    curso = Curso.query.get_or_404(curso_id)
+def detalhe_clube(clube_id):
+    clube = Clube.query.get_or_404(clube_id)
+    agora = datetime.now(timezone.utc)
+    eventos_futuros = clube.eventos.filter(Evento.data_evento >= agora).order_by(Evento.data_evento.asc()).all()
+    eventos_passados = clube.eventos.filter(Evento.data_evento < agora).order_by(Evento.data_evento.desc()).all()
+    return render_template('detalhe_clube.html', clube=clube, eventos_futuros=eventos_futuros, eventos_passados=eventos_passados)
+
+@app.route('/ranking')
+@login_required
+def ranking():
+    clubes_rankeados = sorted(Clube.query.all(), key=lambda c: c.membros.count(), reverse=True)
+    return render_template('ranking.html', clubes=clubes_rankeados)
+
+
+# Fórum
+@app.route('/forum')
+@login_required
+def forum():
+    topicos = ForumTopico.query.order_by(ForumTopico.data_criacao.desc()).all()
+    return render_template('forum.html', topicos=topicos)
+
+@app.route('/forum/topico/<int:topico_id>', methods=['GET', 'POST'])
+@login_required
+def detalhe_topico(topico_id):
+    topico = ForumTopico.query.get_or_404(topico_id)
+    if request.method == 'POST':
+        conteudo_post = request.form.get('conteudo')
+        if conteudo_post:
+            novo_post = ForumPost(conteudo=conteudo_post, user_id=session['user_id'], topico_id=topico.id)
+            db.session.add(novo_post)
+            db.session.commit()
+            flash('Resposta adicionada com sucesso!', 'success')
+            return redirect(url_for('detalhe_topico', topico_id=topico.id))
+    posts = topico.posts.order_by(ForumPost.data_criacao.asc()).all()
+    return render_template('detalhe_topico.html', topico=topico, posts=posts)
+
+@app.route('/forum/novo_topico', methods=['GET', 'POST'])
+@login_required
+def criar_topico():
+    if request.method == 'POST':
+        titulo = request.form.get('titulo')
+        conteudo = request.form.get('conteudo')
+        if titulo and conteudo:
+            novo_topico = ForumTopico(titulo=titulo, conteudo=conteudo, user_id=session['user_id'])
+            db.session.add(novo_topico)
+            db.session.commit()
+            flash('Tópico criado com sucesso!', 'success')
+            return redirect(url_for('detalhe_topico', topico_id=novo_topico.id))
+    return render_template('criar_topico.html')
+
+# Hub de Serviços
+@app.route('/hub_servicos')
+@login_required
+def hub_servicos():
+    eventos_futuros = Evento.query.filter(Evento.vagas > 0).order_by(Evento.data_evento.asc()).limit(3).all()
+    return render_template('hub_servicos.html', eventos_futuros=eventos_futuros)
+
+# Eventos
+@app.route('/eventos')
+@login_required
+def eventos():
+    todos_eventos = Evento.query.order_by(Evento.data_evento.asc()).all()
+    return render_template('eventos.html', eventos=todos_eventos)
+
+@app.route('/evento/<int:evento_id>')
+@login_required
+def detalhe_evento(evento_id):
+    evento = Evento.query.get_or_404(evento_id)
     user = User.query.get(session['user_id'])
+    ja_inscrito = evento in user.eventos_inscritos.all()
+    return render_template('detalhe_evento.html', evento=evento, ja_inscrito=ja_inscrito)
 
-    if curso in user.cursos.all():
-        flash('Você já está inscrito neste curso.', 'info')
-        return redirect(url_for('detalhe_curso', curso_id=curso.id))
+@app.route('/evento/<int:evento_id>/inscrever', methods=['POST'])
+@login_required
+def inscrever_evento(evento_id):
+    evento = Evento.query.get_or_404(evento_id)
+    user = User.query.get(session['user_id'])
+    if evento in user.eventos_inscritos.all():
+        flash('Você já está inscrito neste evento.', 'info')
+    elif evento.vagas_restantes <= 0:
+        flash('Vagas esgotadas para este evento!', 'danger')
+    else:
+        user.eventos_inscritos.append(evento)
+        db.session.commit()
+        flash('Inscrição realizada com sucesso!', 'success')
+    return redirect(url_for('detalhe_evento', evento_id=evento.id))
 
-    if curso.vagas_restantes <= 0:
-        flash('Vagas esgotadas para este curso!', 'danger')
-        return redirect(url_for('detalhe_curso', curso_id=curso.id))
-
-    user.cursos.append(curso)
-    db.session.commit()
-    flash('Inscrição realizada com sucesso!', 'success')
-    return redirect(url_for('detalhe_curso', curso_id=curso.id))
-
+# Autenticação e Perfil
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Página de registro de novos usuários."""
-    if 'user_id' in session:
-        return redirect(url_for('home'))
-
+    if 'user_id' in session: return redirect(url_for('noticias'))
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        
         if not (username and len(username) == 12 and username.isdigit()):
             flash('Formato de matrícula inválido. Use apenas os 12 dígitos.', 'danger')
-            return redirect(url_for('register'))
-        
-        user_existente = User.query.filter_by(username=username).first()
-        if user_existente:
+        elif User.query.filter_by(username=username).first():
             flash('Esta matrícula já está registrada. Tente fazer o login.', 'warning')
+        else:
+            password_hash = generate_password_hash(password)
+            novo_user = User(username=username, password_hash=password_hash)
+            db.session.add(novo_user)
+            db.session.commit()
+            flash('Conta criada com sucesso! Pode fazer o login.', 'success')
             return redirect(url_for('login'))
-
-        password_hash = generate_password_hash(password)
-        novo_user = User(username=username, password_hash=password_hash)
-        db.session.add(novo_user)
-        db.session.commit()
-        flash('Conta criada com sucesso! Pode fazer o login.', 'success')
-        return redirect(url_for('login'))
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Página de login."""
-    if 'user_id' in session:
-        return redirect(url_for('home'))
-
+    if 'user_id' in session: return redirect(url_for('noticias'))
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
-        
         if user and check_password_hash(user.password_hash, password):
             session['user_id'] = user.id
             flash('Login realizado com sucesso!', 'success')
-            return redirect(url_for('home'))
+            return redirect(url_for('noticias'))
         else:
             flash('Matrícula ou senha inválidos. Tente novamente.', 'danger')
-            return redirect(url_for('login'))
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
-    """Realiza o logout do usuário."""
     session.pop('user_id', None)
     flash('Você saiu da sua conta.', 'info')
     return redirect(url_for('login'))
@@ -206,52 +267,46 @@ def logout():
 @app.route('/account', methods=['GET', 'POST'])
 @login_required
 def account():
-    """Página de perfil do usuário."""
     user = User.query.get_or_404(session['user_id'])
-    if request.method == 'POST':
-        if 'picture' in request.files:
-            file = request.files['picture']
-            if file and file.filename != '' and allowed_file(file.filename):
-                filename = secure_filename(f"{user.username}_{file.filename}")
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                user.image_file = filename
-                db.session.commit()
-                flash('Foto de perfil atualizada com sucesso!', 'success')
-                return redirect(url_for('account'))
-            else:
-                flash('Tipo de arquivo inválido. Use png, jpg, jpeg ou gif.', 'danger')
-
+    if request.method == 'POST' and 'picture' in request.files:
+        file = request.files['picture']
+        if file and file.filename != '' and allowed_file(file.filename):
+            filename = secure_filename(f"{user.username}_{file.filename}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            user.image_file = filename
+            db.session.commit()
+            flash('Foto de perfil atualizada com sucesso!', 'success')
+            return redirect(url_for('account'))
+        else:
+            flash('Tipo de arquivo inválido. Use png, jpg, jpeg ou gif.', 'danger')
     image_file = url_for('static', filename='profile_pics/' + user.image_file)
-    return render_template('account.html', image_file=image_file, cursos=user.cursos)
+    return render_template('account.html', image_file=image_file, eventos=user.eventos_inscritos)
 
-
-# --- 6. COMANDOS DE TERMINAL PERSONALIZADOS ---
+# --- Comandos CLI ---
 @app.cli.command('seed-db')
 def seed_db_command():
-    """Comando para popular o banco de dados com dados iniciais (seeding)."""
-    if Curso.query.count() > 0:
-        print('O banco de dados já contém cursos.')
-    else:
-        c1 = Curso(titulo='Introdução a Algoritmos', descricao='Aprenda a lógica de programação e estruturas de dados fundamentais.', vagas=25)
-        c2 = Curso(titulo='Redes de Computadores 101', descricao='Entenda os fundamentos da internet e protocolos de comunicação.', vagas=20)
-        c3 = Curso(titulo='Desenvolvimento Web com Flask', descricao='Crie aplicações web dinâmicas e poderosas com Flask.', vagas=30)
-        db.session.add_all([c1, c2, c3])
+    """Popula o banco de dados com dados iniciais."""
+    if Clube.query.count() == 0:
+        clube1 = Clube(nome='Clube de Programação', descricao='Para entusiastas de código e desenvolvimento.', categoria='Tecnologia')
+        clube2 = Clube(nome='Clube de Leitura', descricao='Discussões sobre obras literárias.', categoria='Cultura')
+        clube3 = Clube(nome='Clube de Esportes', descricao='Organização de treinos e campeonatos.', categoria='Esportes')
+        db.session.add_all([clube1, clube2, clube3])
         db.session.commit()
-        print('Banco de dados semeado com cursos de exemplo.')
+        print("Clubes de exemplo criados.")
 
-    if Noticia.query.count() == 0:
-        c1 = Curso.query.filter_by(titulo='Introdução a Algoritmos').first()
-        c3 = Curso.query.filter_by(titulo='Desenvolvimento Web com Flask').first()
-        
-        if c1 and c3:
-            n1 = Noticia(titulo='Inscrições Abertas!', conteudo='As inscrições para a nova turma de Introdução a Algoritmos estão oficialmente abertas. Garanta já a sua vaga!', curso=c1)
-            n2 = Noticia(titulo='Novo Módulo: Flask Avançado', conteudo='Adicionámos um novo módulo ao curso de Flask, cobrindo tópicos como Blueprints e extensões populares.', curso=c3)
-            n3 = Noticia(titulo='Vagas Remanescentes', conteudo='Ainda restam 5 vagas para o curso de Algoritmos. Não perca esta oportunidade!', curso=c1)
-            db.session.add_all([n1, n2, n3])
-            db.session.commit()
-            print('Banco de dados semeado com notícias de exemplo.')
+        e1 = Evento(titulo='Maratona de Programação', descricao='Resolva desafios de programação em equipe.', vagas=50, clube_id=clube1.id, data_evento=datetime(2025, 8, 10, 9, 0, 0, tzinfo=timezone.utc))
+        e2 = Evento(titulo='Debate sobre Ficção Científica', descricao='Análise do livro "Duna" de Frank Herbert.', vagas=30, clube_id=clube2.id, data_evento=datetime(2025, 8, 15, 18, 30, 0, tzinfo=timezone.utc))
+        e3 = Evento(titulo='Torneio de Vôlei', descricao='Monte sua equipe e participe!', vagas=40, clube_id=clube3.id, data_evento=datetime(2025, 8, 20, 14, 0, 0, tzinfo=timezone.utc))
+        db.session.add_all([e1, e2, e3])
+        db.session.commit()
+        print("Eventos de exemplo criados.")
+
+        n1 = Noticia(titulo='Inscrições Abertas para a Maratona!', conteudo='As inscrições para a maratona de programação já começaram. Não perca!', evento=e1)
+        db.session.add(n1)
+        db.session.commit()
+        print("Notícias de exemplo criadas.")
     else:
-        print('O banco de dados já contém notícias.')
+        print("O banco de dados já contém dados.")
 
 
 if __name__ == '__main__':

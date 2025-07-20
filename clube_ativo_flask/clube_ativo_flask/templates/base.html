@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Clube Ativo IFPB{% endblock %}</title>
+    <title>{% block title %}Conecta IF{% endblock %}</title>
     
     <!-- Fontes e Ícones -->
     <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
@@ -18,8 +18,8 @@
     <header class="header">
         <div class="container">
             <nav class="navbar">
-                <a class="navbar-brand" href="{{ url_for('home') if current_user_data else url_for('login') }}">
-                    <i class="fas fa-users"></i> <strong>Clube</strong>Ativo
+                <a class="navbar-brand" href="{{ url_for('noticias') if current_user_data else url_for('login') }}">
+                    <i class="fas fa-satellite-dish"></i> <strong>Conecta</strong> IF
                 </a>
                 <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
                     <span></span>
@@ -28,8 +28,11 @@
                 </button>
                 <div class="nav-links" id="nav-links">
                     {% if current_user_data %}
-                        <a class="nav-item" href="{{ url_for('home') }}">Cursos</a>
                         <a class="nav-item" href="{{ url_for('noticias') }}">Notícias</a>
+                        <a class="nav-item" href="{{ url_for('clubes') }}">Clubes</a>
+                        <a class="nav-item" href="{{ url_for('ranking') }}">Ranking</a>
+                        <a class="nav-item" href="{{ url_for('forum') }}">Fórum</a>
+                        <a class="nav-item" href="{{ url_for('hub_servicos') }}">Hub de Serviços</a>
                         <div class="nav-item user-menu">
                              <a class="user-menu-trigger" href="#">
                                 <img src="{{ url_for('static', filename='profile_pics/' + current_user_data.image_file) }}" class="nav-profile-image">
@@ -63,7 +66,7 @@
     </main>
 
     <footer class="footer">
-        <p>&copy; {{ current_year }} Clube Ativo - IFPB Campus Picuí</p>
+        <p>&copy; {{ current_year }} Conecta IF - IFPB Campus Picuí</p>
     </footer>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
