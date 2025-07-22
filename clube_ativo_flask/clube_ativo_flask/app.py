@@ -2,7 +2,7 @@ import os
 from functools import wraps
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from werkzeug.utils import secure_filename
@@ -14,7 +14,7 @@ load_dotenv()
 # --- 1. CONFIGURAÇÃO DA APLICAÇÃO ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'uma-chave-secreta-para-desenvolvimento')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///instance/database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Configuração da pasta de uploads e extensões permitidas
@@ -25,16 +25,14 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     """Verifica se a extensão do arquivo é permitida."""
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- 2. INICIALIZAÇÃO DO BANCO DE DADOS E MIGRAÇÕES ---
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 # --- 3. MODELOS DA BASE DE DADOS ---
-
+# (Seus modelos User, Clube, Evento, etc. continuam os mesmos daqui para baixo)
 # Tabelas de associação
 inscricao_evento_tabela = db.Table('inscricao_evento',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
@@ -56,9 +54,6 @@ class User(db.Model):
     topicos_criados = db.relationship('ForumTopico', backref='autor', lazy='dynamic')
     posts_criados = db.relationship('ForumPost', backref='autor', lazy='dynamic')
 
-    def __repr__(self):
-        return f"User('{self.username}', '{self.image_file}')"
-
 class Clube(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), unique=True, nullable=False)
@@ -76,7 +71,6 @@ class Evento(db.Model):
     clube_id = db.Column(db.Integer, db.ForeignKey('clube.id'), nullable=False)
     alunos_inscritos = db.relationship('User', secondary=inscricao_evento_tabela, back_populates='eventos_inscritos', lazy='dynamic')
     noticias = db.relationship('Noticia', backref='evento', lazy='dynamic', cascade="all, delete-orphan")
-
     @property
     def vagas_restantes(self):
         return self.vagas - self.alunos_inscritos.count()
@@ -103,11 +97,27 @@ class ForumPost(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     topico_id = db.Column(db.Integer, db.ForeignKey('forum_topico.id'), nullable=False)
 
+
 # --- 4. LÓGICA AUXILIAR ---
+
+@app.before_request
+def load_logged_in_user():
+    """Carrega o usuário logado antes de cada requisição."""
+    user_id = session.get('user_id')
+    if user_id is None:
+        g.user = None
+    else:
+        # Busca o usuário no banco de dados
+        g.user = User.query.get(int(user_id))
+        # Se o user_id na sessão for inválido (usuário apagado), limpa a sessão
+        if g.user is None:
+            session.clear()
+
 def login_required(f):
+    """Decorador para exigir login."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        if g.user is None:
             flash('Você precisa fazer login para acessar esta página.', 'warning')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
@@ -115,15 +125,19 @@ def login_required(f):
 
 @app.context_processor
 def inject_user_and_year():
-    user = User.query.get(session['user_id']) if 'user_id' in session else None
-    return dict(current_user_data=user, current_year=datetime.now(timezone.utc).year)
+    """Injeta dados nos templates."""
+    return dict(current_user_data=g.user, current_year=datetime.now(timezone.utc).year)
 
 # --- 5. ROTAS ---
+
 @app.route('/')
 def index():
-    if 'user_id' in session:
+    if g.user:
         return redirect(url_for('noticias'))
     return redirect(url_for('login'))
+
+# ... (O resto das suas rotas)
+# Substituí todas as chamadas a session['user_id'] por g.user.id ou apenas g.user
 
 @app.route('/noticias')
 @login_required
@@ -165,7 +179,7 @@ def detalhe_topico(topico_id):
     if request.method == 'POST':
         conteudo_post = request.form.get('conteudo')
         if conteudo_post:
-            novo_post = ForumPost(conteudo=conteudo_post, user_id=session['user_id'], topico_id=topico.id)
+            novo_post = ForumPost(conteudo=conteudo_post, user_id=g.user.id, topico_id=topico.id)
             db.session.add(novo_post)
             db.session.commit()
             flash('Resposta adicionada com sucesso!', 'success')
@@ -180,7 +194,7 @@ def criar_topico():
         titulo = request.form.get('titulo')
         conteudo = request.form.get('conteudo')
         if titulo and conteudo:
-            novo_topico = ForumTopico(titulo=titulo, conteudo=conteudo, user_id=session['user_id'])
+            novo_topico = ForumTopico(titulo=titulo, conteudo=conteudo, user_id=g.user.id)
             db.session.add(novo_topico)
             db.session.commit()
             flash('Tópico criado com sucesso!', 'success')
@@ -203,28 +217,26 @@ def eventos():
 @login_required
 def detalhe_evento(evento_id):
     evento = Evento.query.get_or_404(evento_id)
-    user = User.query.get(session['user_id'])
-    ja_inscrito = evento in user.eventos_inscritos.all()
+    ja_inscrito = evento in g.user.eventos_inscritos.all()
     return render_template('detalhe_evento.html', evento=evento, ja_inscrito=ja_inscrito)
 
 @app.route('/evento/<int:evento_id>/inscrever', methods=['POST'])
 @login_required
 def inscrever_evento(evento_id):
     evento = Evento.query.get_or_404(evento_id)
-    user = User.query.get(session['user_id'])
-    if evento in user.eventos_inscritos.all():
+    if evento in g.user.eventos_inscritos.all():
         flash('Você já está inscrito neste evento.', 'info')
     elif evento.vagas_restantes <= 0:
         flash('Vagas esgotadas para este evento!', 'danger')
     else:
-        user.eventos_inscritos.append(evento)
+        g.user.eventos_inscritos.append(evento)
         db.session.commit()
         flash('Inscrição realizada com sucesso!', 'success')
     return redirect(url_for('detalhe_evento', evento_id=evento.id))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if 'user_id' in session: return redirect(url_for('noticias'))
+    if g.user: return redirect(url_for('noticias'))
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -243,13 +255,13 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if 'user_id' in session: return redirect(url_for('noticias'))
+    if g.user: return redirect(url_for('noticias'))
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
-        
         if user and check_password_hash(user.password_hash, password):
+            session.clear()
             session['user_id'] = user.id
             flash('Login realizado com sucesso!', 'success')
             return redirect(url_for('noticias'))
@@ -259,29 +271,28 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None)
+    session.clear()
     flash('Você saiu da sua conta.', 'info')
     return redirect(url_for('login'))
 
 @app.route('/account', methods=['GET', 'POST'])
 @login_required
 def account():
-    user = User.query.get_or_404(session['user_id'])
     if request.method == 'POST' and 'picture' in request.files:
         file = request.files['picture']
         if file and file.filename != '' and allowed_file(file.filename):
-            filename = secure_filename(f"{user.username}_{file.filename}")
+            filename = secure_filename(f"{g.user.username}_{file.filename}")
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            user.image_file = filename
+            g.user.image_file = filename
             db.session.commit()
             flash('Foto de perfil atualizada com sucesso!', 'success')
             return redirect(url_for('account'))
         else:
             flash('Tipo de arquivo inválido. Use png, jpg, jpeg ou gif.', 'danger')
-    image_file = url_for('static', filename='profile_pics/' + user.image_file)
-    return render_template('account.html', image_file=image_file, eventos=user.eventos_inscritos)
+    image_file = url_for('static', filename='profile_pics/' + g.user.image_file)
+    return render_template('account.html', image_file=image_file, eventos=g.user.eventos_inscritos)
 
-# --- Comandos CLI ---
+# ... (Seus comandos CLI seed-db continuam iguais)
 @app.cli.command('seed-db')
 def seed_db_command():
     """Popula o banco de dados com dados iniciais."""
@@ -303,11 +314,10 @@ def seed_db_command():
     db.session.commit()
     print("Eventos de exemplo criados.")
 
-    n1 = Noticia(titulo='Inscrições Abertas para a Maratona!', conteudo='As inscrições para a maratona de programação já começaram. Não perca!', evento=e1)
+    n1 = Noticia(titulo='Inscrições Abertas para a Maratona!', conteudo='Não perca!', evento_id=e1.id)
     db.session.add(n1)
     db.session.commit()
     print("Notícias de exemplo criadas.")
-    
 
 if __name__ == '__main__':
     app.run(debug=True)
