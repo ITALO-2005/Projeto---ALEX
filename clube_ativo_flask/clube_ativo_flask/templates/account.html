@@ -1,9 +1,5 @@
 {% extends 'base.html' %}
-<<<<<<< HEAD
-{% block title %}Minha Conta - Hub Ativo{% endblock %}
-=======
-{% block title %}Minha Conta - Clube Ativo{% endblock %}
->>>>>>> f776aa0 (TESTOSTERONA)
+{% block title %}Minha Conta - Conecta IF{% endblock %}
 
 {% block content %}
 <div class="account-grid">
@@ -26,20 +22,20 @@
     </div>
     <div class="account-main">
         <div class="card">
-            <h4>Meus Cursos Inscritos</h4>
-            {% if cursos and cursos.count() > 0 %}
+            <h4>Meus Eventos Inscritos</h4>
+            {% if eventos and eventos.count() > 0 %}
                 <ul class="course-list">
-                    {% for curso in cursos %}
+                    {% for evento in eventos %}
                         <li class="list-item">
-                            <span>{{ curso.titulo }}</span>
-                            <a href="{{ url_for('detalhe_curso', curso_id=curso.id) }}" class="btn btn-secondary">Ver</a>
+                            <span>{{ evento.titulo }}</span>
+                            <a href="{{ url_for('detalhe_evento', evento_id=evento.id) }}" class="btn btn-secondary">Ver</a>
                         </li>
                     {% endfor %}
                 </ul>
             {% else %}
                 <div class="empty-state">
-                    <p>Você ainda não se inscreveu em nenhum curso.</p>
-                    <a href="{{ url_for('home') }}" class="btn">Ver cursos disponíveis</a>
+                    <p>Você ainda não se inscreveu em nenhum evento.</p>
+                    <a href="{{ url_for('eventos') }}" class="btn">Ver eventos disponíveis</a>
                 </div>
             {% endif %}
         </div>
