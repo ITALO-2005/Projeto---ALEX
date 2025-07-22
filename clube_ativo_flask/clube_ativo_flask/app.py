@@ -25,7 +25,7 @@ app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() in ['true', '1', 't']
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = ('Conecta IF', os.getenv('MAIL_USERNAME'))
+app.config['MAIL_DEFAULT_SENDER'] = ('Hub Comunitário', os.getenv('MAIL_USERNAME'))
 
 # --- INICIALIZAÇÃO DE EXTENSÕES ---
 mail = Mail(app)
@@ -138,7 +138,7 @@ def index():
     return redirect(url_for('login')) if g.user is None else redirect(url_for('noticias'))
 def send_reset_email(user):
     token = user.get_reset_token()
-    msg = Message('Redefinição de Senha - Conecta IF', recipients=[user.email])
+    msg = Message('Redefinição de Senha - Hub Comunitário', recipients=[user.email])
     msg.html = render_template('email/reset_password.html', user=user, token=token)
     mail.send(msg)
 @app.route('/forgot_password', methods=['GET', 'POST'])
