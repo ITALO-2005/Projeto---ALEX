@@ -43,16 +43,15 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- 3. MODELOS DA BASE DE DADOS ---
+# ... (Seus modelos continuam os mesmos) ...
 inscricao_evento_tabela = db.Table('inscricao_evento',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('evento_id', db.Integer, db.ForeignKey('evento.id'), primary_key=True)
 )
-
 membros_clube_tabela = db.Table('membros_clube',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('clube_id', db.Integer, db.ForeignKey('clube.id'), primary_key=True)
 )
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -63,10 +62,8 @@ class User(db.Model):
     clubes_membro = db.relationship('Clube', secondary=membros_clube_tabela, back_populates='membros', lazy='dynamic')
     topicos_criados = db.relationship('ForumTopico', backref='autor', lazy='dynamic', cascade="all, delete-orphan")
     posts_criados = db.relationship('ForumPost', backref='autor', lazy='dynamic', cascade="all, delete-orphan")
-
     def get_reset_token(self, expires_sec=1800):
         return serializer.dumps({'user_id': self.id}, salt='password-reset-salt')
-
     @staticmethod
     def verify_reset_token(token, expires_sec=1800):
         try:
@@ -74,7 +71,6 @@ class User(db.Model):
             return User.query.get(data['user_id'])
         except (SignatureExpired, Exception):
             return None
-
 class Clube(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), unique=True, nullable=False)
@@ -82,7 +78,6 @@ class Clube(db.Model):
     categoria = db.Column(db.String(50), nullable=False)
     membros = db.relationship('User', secondary=membros_clube_tabela, back_populates='clubes_membro', lazy='dynamic')
     eventos = db.relationship('Evento', backref='clube_organizador', lazy='dynamic')
-
 class Evento(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titulo = db.Column(db.String(200), nullable=False)
@@ -95,14 +90,12 @@ class Evento(db.Model):
     @property
     def vagas_restantes(self):
         return self.vagas - self.alunos_inscritos.count()
-
 class Noticia(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titulo = db.Column(db.String(200), nullable=False)
     conteudo = db.Column(db.Text, nullable=False)
     data_publicacao = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     evento_id = db.Column(db.Integer, db.ForeignKey('evento.id'), nullable=True)
-
 class ForumTopico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titulo = db.Column(db.String(200), nullable=False)
@@ -110,7 +103,6 @@ class ForumTopico(db.Model):
     data_criacao = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     posts = db.relationship('ForumPost', backref='topico', lazy='dynamic', cascade="all, delete-orphan")
-
 class ForumPost(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     conteudo = db.Column(db.Text, nullable=False)
@@ -140,17 +132,15 @@ def inject_user_and_year():
     return dict(current_user_data=g.user, current_year=datetime.now(timezone.utc).year)
 
 # --- 5. ROTAS ---
+# ... (Suas rotas de index, gerenciamento de conta e autenticação continuam as mesmas) ...
 @app.route('/')
 def index():
     return redirect(url_for('login')) if g.user is None else redirect(url_for('noticias'))
-
-# ROTAS DE GERENCIAMENTO DE CONTA
 def send_reset_email(user):
     token = user.get_reset_token()
     msg = Message('Redefinição de Senha - Conecta IF', recipients=[user.email])
     msg.html = render_template('email/reset_password.html', user=user, token=token)
     mail.send(msg)
-
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
     if g.user: return redirect(url_for('noticias'))
@@ -163,7 +153,6 @@ def forgot_password():
         else:
             flash('Nenhuma conta encontrada com este e-mail.', 'warning')
     return render_template('forgot_password.html')
-
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     if g.user: return redirect(url_for('noticias'))
@@ -177,7 +166,6 @@ def reset_password(token):
         flash('Sua senha foi atualizada! Você já pode fazer login.', 'success')
         return redirect(url_for('login'))
     return render_template('reset_password.html', token=token)
-
 @app.route('/account/change_password', methods=['POST'])
 @login_required
 def change_password():
@@ -190,22 +178,18 @@ def change_password():
         db.session.commit()
         flash('Senha alterada com sucesso!', 'success')
     return redirect(url_for('account'))
-
 @app.route('/account/delete', methods=['POST'])
 @login_required
 def delete_account():
     if not check_password_hash(g.user.password_hash, request.form.get('password')):
         flash('Senha incorreta. A exclusão da conta foi cancelada.', 'danger')
         return redirect(url_for('account'))
-    
     user_to_delete = g.user
     session.clear()
     db.session.delete(user_to_delete)
     db.session.commit()
     flash('Sua conta foi excluída permanentemente.', 'info')
     return redirect(url_for('login'))
-
-# ROTAS DE AUTENTICAÇÃO
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if g.user: return redirect(url_for('noticias'))
@@ -213,23 +197,17 @@ def register():
         email = request.form.get('email')
         username = request.form.get('username')
         password = request.form.get('password')
-
         if User.query.filter_by(email=email).first():
             flash('Este e-mail já está em uso.', 'warning')
         elif User.query.filter_by(username=username).first():
             flash('Esta matrícula já está registrada.', 'warning')
         else:
-            novo_user = User(
-                email=email,
-                username=username,
-                password_hash=generate_password_hash(password)
-            )
+            novo_user = User(email=email, username=username, password_hash=generate_password_hash(password))
             db.session.add(novo_user)
             db.session.commit()
             flash('Conta criada com sucesso! Pode fazer o login.', 'success')
             return redirect(url_for('login'))
     return render_template('register.html')
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if g.user: return redirect(url_for('noticias'))
@@ -242,12 +220,46 @@ def login():
         else:
             flash('Matrícula ou senha inválidos.', 'danger')
     return render_template('login.html')
-
 @app.route('/logout')
 def logout():
     session.clear()
     flash('Você saiu da sua conta.', 'info')
     return redirect(url_for('login'))
+
+# ROTA DA CONTA ATUALIZADA
+@app.route('/account', methods=['GET', 'POST'])
+@login_required
+def account():
+    # Esta parte lida com o upload do arquivo de imagem
+    if request.method == 'POST':
+        # Verifica se a requisição POST tem a parte do arquivo
+        if 'picture' not in request.files:
+            flash('Nenhuma parte do arquivo encontrada no formulário.', 'danger')
+            return redirect(request.url)
+        file = request.files['picture']
+        # Se o usuário não selecionar um arquivo, o navegador
+        # envia um arquivo vazio sem nome de arquivo.
+        if file.filename == '':
+            flash('Nenhum arquivo selecionado.', 'warning')
+            return redirect(request.url)
+        if file and allowed_file(file.filename):
+            # Gera um nome de arquivo seguro
+            ext = os.path.splitext(file.filename)[1]
+            filename = secure_filename(f"{g.user.username}{ext}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            
+            # Atualiza o nome do arquivo no banco de dados
+            g.user.image_file = filename
+            db.session.commit()
+            flash('Foto de perfil atualizada com sucesso!', 'success')
+            return redirect(url_for('account'))
+        else:
+            flash('Tipo de arquivo inválido. Use png, jpg, jpeg ou gif.', 'danger')
+            return redirect(url_for('account'))
+
+    # Esta parte lida com a requisição GET (carregamento normal da página)
+    image_file = url_for('static', filename='profile_pics/' + g.user.image_file)
+    return render_template('account.html', image_file=image_file, eventos=g.user.eventos_inscritos)
 
 # ROTAS PRINCIPAIS DA APLICAÇÃO
 @app.route('/noticias')
@@ -255,28 +267,11 @@ def logout():
 def noticias():
     todas_noticias = Noticia.query.order_by(Noticia.data_publicacao.desc()).all()
     return render_template('noticias.html', noticias=todas_noticias)
-
-@app.route('/account', methods=['GET', 'POST'])
-@login_required
-def account():
-    if request.method == 'POST' and 'picture' in request.files:
-        file = request.files['picture']
-        if file and file.filename != '' and allowed_file(file.filename):
-            filename = secure_filename(f"{g.user.username}_{file.filename}")
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            g.user.image_file = filename
-            db.session.commit()
-            flash('Foto de perfil atualizada com sucesso!', 'success')
-            return redirect(url_for('account'))
-    image_file = url_for('static', filename='profile_pics/' + g.user.image_file)
-    return render_template('account.html', image_file=image_file, eventos=g.user.eventos_inscritos)
-
 @app.route('/clubes')
 @login_required
 def clubes():
     todos_clubes = Clube.query.order_by(Clube.nome).all()
     return render_template('clubes.html', clubes=todos_clubes)
-
 @app.route('/clube/<int:clube_id>')
 @login_required
 def detalhe_clube(clube_id):
@@ -285,19 +280,16 @@ def detalhe_clube(clube_id):
     eventos_futuros = clube.eventos.filter(Evento.data_evento >= agora).order_by(Evento.data_evento.asc()).all()
     eventos_passados = clube.eventos.filter(Evento.data_evento < agora).order_by(Evento.data_evento.desc()).all()
     return render_template('detalhe_clube.html', clube=clube, eventos_futuros=eventos_futuros, eventos_passados=eventos_passados)
-
 @app.route('/ranking')
 @login_required
 def ranking():
     clubes_rankeados = sorted(Clube.query.all(), key=lambda c: c.membros.count(), reverse=True)
     return render_template('ranking.html', clubes=clubes_rankeados)
-
 @app.route('/forum')
 @login_required
 def forum():
     topicos = ForumTopico.query.order_by(ForumTopico.data_criacao.desc()).all()
     return render_template('forum.html', topicos=topicos)
-
 @app.route('/forum/topico/<int:topico_id>', methods=['GET', 'POST'])
 @login_required
 def detalhe_topico(topico_id):
@@ -312,7 +304,6 @@ def detalhe_topico(topico_id):
             return redirect(url_for('detalhe_topico', topico_id=topico.id))
     posts = topico.posts.order_by(ForumPost.data_criacao.asc()).all()
     return render_template('detalhe_topico.html', topico=topico, posts=posts)
-
 @app.route('/forum/novo_topico', methods=['GET', 'POST'])
 @login_required
 def criar_topico():
@@ -326,26 +317,22 @@ def criar_topico():
             flash('Tópico criado com sucesso!', 'success')
             return redirect(url_for('detalhe_topico', topico_id=novo_topico.id))
     return render_template('criar_topico.html')
-
 @app.route('/hub_servicos')
 @login_required
 def hub_servicos():
     eventos_futuros = Evento.query.filter(Evento.vagas > 0).order_by(Evento.data_evento.asc()).limit(3).all()
     return render_template('hub_servicos.html', eventos_futuros=eventos_futuros)
-
 @app.route('/eventos')
 @login_required
 def eventos():
     todos_eventos = Evento.query.order_by(Evento.data_evento.asc()).all()
     return render_template('eventos.html', eventos=todos_eventos)
-
 @app.route('/evento/<int:evento_id>')
 @login_required
 def detalhe_evento(evento_id):
     evento = Evento.query.get_or_404(evento_id)
     ja_inscrito = evento in g.user.eventos_inscritos.all()
     return render_template('detalhe_evento.html', evento=evento, ja_inscrito=ja_inscrito)
-
 @app.route('/evento/<int:evento_id>/inscrever', methods=['POST'])
 @login_required
 def inscrever_evento(evento_id):
@@ -360,14 +347,12 @@ def inscrever_evento(evento_id):
         flash('Inscrição realizada com sucesso!', 'success')
     return redirect(url_for('detalhe_evento', evento_id=evento.id))
 
-# --- COMANDOS CLI ---
+# ... (Seu comando seed-db continua o mesmo) ...
 @app.cli.command('seed-db')
 def seed_db_command():
-    """Popula o banco de dados com dados iniciais e realistas."""
     if Clube.query.count() > 0:
         print("O banco de dados já contém dados. Abortando o seeding.")
         return
-        
     print("Criando clubes de exemplo...")
     clube_prog = Clube(nome='Clube de Programação', descricao='Para entusiastas de código, desenvolvimento de software e competições.', categoria='Tecnologia')
     clube_robotica = Clube(nome='Clube de Robótica', descricao='Construção e programação de robôs para desafios e aprendizado.', categoria='Tecnologia')
@@ -377,7 +362,6 @@ def seed_db_command():
     db.session.add_all([clube_prog, clube_robotica, clube_teatro, clube_literatura, clube_esportes])
     db.session.commit()
     print("Clubes criados.")
-
     print("Criando eventos de exemplo...")
     e1 = Evento(titulo='Maratona de Programação', descricao='Resolva desafios de programação em equipe.', vagas=50, clube_id=clube_prog.id, data_evento=datetime(2025, 8, 10, 9, 0, 0, tzinfo=timezone.utc))
     e2 = Evento(titulo='Oficina de Arduino', descricao='Aprenda os primeiros passos com a plataforma Arduino.', vagas=25, clube_id=clube_robotica.id, data_evento=datetime(2025, 8, 22, 14, 0, 0, tzinfo=timezone.utc))
@@ -385,7 +369,6 @@ def seed_db_command():
     db.session.add_all([e1, e2, e3])
     db.session.commit()
     print("Eventos criados.")
-
     print("Criando notícias de exemplo...")
     n1 = Noticia(titulo='Inscrições Abertas para a Maratona de Programação!', conteudo='As inscrições para a maratona de programação já começaram. Monte sua equipe e participe!', evento_id=e1.id)
     n2 = Noticia(titulo='Edital de Monitoria 2025.2', conteudo='Estão abertas as inscrições para o programa de monitoria. Os interessados devem procurar a coordenação do seu curso para mais informações sobre vagas e disciplinas disponíveis.')
@@ -393,7 +376,6 @@ def seed_db_command():
     db.session.commit()
     print("Notícias criadas.")
     print("Banco de dados populado com sucesso!")
-
 
 if __name__ == '__main__':
     app.run(debug=True)
